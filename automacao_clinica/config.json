@@ -1,0 +1,8 @@
+{
+  "smtp": {},
+  "drive_raiz": "C:\\Users\\kelvi\\Downloads\\drive\\janeiro",
+  "pasta_destino": "C:\\Users\\kelvi\\Downloads\\teste",
+  "threshold_fuzzy": 80,
+  "enviar_email_auto": false,
+  "email_relatorio": ""
+}
