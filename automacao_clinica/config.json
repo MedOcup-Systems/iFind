@@ -1,8 +1,12 @@
 {
   "smtp": {},
-  "drive_raiz": "C:\\Users\\kelvi\\Downloads\\drive\\janeiro",
-  "pasta_destino": "C:\\Users\\kelvi\\Downloads\\teste",
+  "drive_raiz": "I:/Meu Drive/NOVAMEDICINA.2/2026",
+  "pasta_destino": "C:/Users/Kauan/Desktop/Teste/Maio",
   "threshold_fuzzy": 80,
   "enviar_email_auto": false,
-  "email_relatorio": ""
+  "email_relatorio": "",
+  "modo_extracao": "ocr",
+  "dpi_ocr": 150,
+  "max_workers": 1,
+  "filtrar_aso": true
 }

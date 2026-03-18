@@ -118,7 +118,7 @@ def tela_login():
             key="login_senha"
         )
 
-        if st.button("Entrar", type="primary", use_container_width=True):
+        if st.button("Entrar", type="primary", width='stretch'):
             if not campo_usuario.strip() or not campo_senha.strip():
                 st.error("Preencha o usuário e a senha.")
             elif fazer_login(campo_usuario.strip(), campo_senha):

@@ -34,10 +34,6 @@ st.set_page_config(
 # ---------------------------------------------------------------------------
 
 def _tesseract_ok() -> bool:
-    """
-    Verifica se o Tesseract está acessível por qualquer meio conhecido.
-    Se encontrar, atualiza o PATH da sessão imediatamente.
-    """
     if shutil.which("tesseract"):
         return True
 
@@ -70,7 +66,6 @@ def _tesseract_ok() -> bool:
 
     return False
 
-
 def _mostrar_instrucoes_manuais():
     sistema = platform.system().lower()
     st.markdown("**Instalação manual:**")
@@ -79,20 +74,15 @@ def _mostrar_instrucoes_manuais():
             "1. Acesse: https://github.com/UB-Mannheim/tesseract/wiki\n"
             "2. Baixe o instalador para Windows 64-bit\n"
             "3. Execute **como Administrador**\n"
-            "4. Marque a opção **Add to PATH** durante a instalação\n"
+            "4. Marque a option **Add to PATH** durante a instalação\n"
             "5. Reinicie o terminal e execute `streamlit run app.py` novamente"
         )
     elif sistema == "linux":
-        st.code("sudo apt install tesseract-ocr tesseract-ocr-por")
+        st.code("sudo apt install tesseract-ocr")
     elif sistema == "darwin":
-        st.code("brew install tesseract tesseract-lang")
-
+        st.code("brew install tesseract")
 
 def _verificar_tesseract():
-    """
-    Chamada na inicialização do app — antes de qualquer outro conteúdo.
-    Se o Tesseract não for encontrado, tenta instalar automaticamente.
-    """
     if _tesseract_ok():
         return
 
@@ -113,10 +103,7 @@ def _verificar_tesseract():
         st.stop()
 
     st.info(f"🔧 Instalando Tesseract OCR via `{setup_path.name}`...")
-    st.caption(
-        "O script de instalação será executado. "
-        "Uma janela UAC pode aparecer pedindo permissão de administrador — clique em Sim."
-    )
+    st.caption("O script de instalação será executado. Uma janela UAC pode aparecer pedindo permissão de administrador — clique em Sim.")
 
     import ctypes
 
@@ -133,10 +120,7 @@ def _verificar_tesseract():
             None, "runas", sys.executable, f'"{script}"', None, 1
         )
         if res <= 32:
-            st.error(
-                f"❌ Falha ao solicitar admin (código {res}). "
-                "Execute o setup_tesseract.py manualmente como Administrador."
-            )
+            st.error(f"❌ Falha ao solicitar admin (código {res}). Execute o setup_tesseract.py manualmente como Administrador.")
             _mostrar_instrucoes_manuais()
             st.stop()
 
@@ -152,7 +136,7 @@ def _verificar_tesseract():
             [sys.executable, str(setup_path)],
             capture_output=True,
             text=True,
-            timeout=360,
+            timeout=360
         )
         saida = resultado.stdout + resultado.stderr
         linhas = [l for l in saida.splitlines() if l.strip()]
@@ -181,12 +165,10 @@ def _verificar_tesseract():
         )
         st.stop()
 
-
 # ---------------------------------------------------------------------------
 # CHAMADA DA VERIFICAÇÃO
 # ---------------------------------------------------------------------------
 _verificar_tesseract()
-
 
 # ---------------------------------------------------------------------------
 # Inicialização dos módulos
@@ -196,22 +178,17 @@ try:
         inicializar_banco, listar_execucoes, resultados_da_execucao,
         iniciar_execucao, finalizar_execucao, salvar_resultado,
         estatisticas_gerais, listar_usuarios, criar_usuario,
-        alterar_senha, desativar_usuario,
+        alterar_senha, desativar_usuario
     )
     from auth      import tela_login, usuario_atual, fazer_logout, inicializar_sessao
-    from processor import processar_lista, validar_planilha, ler_planilha
+    from processor import processar_lista
     from mailer    import enviar_email, enviar_relatorio_execucao, email_configurado
 except ImportError as e:
     st.error(f"Erro de importação: {e}")
     st.info("Execute: pip install -r requirements.txt")
     st.stop()
 
-
 def _main():
-    """
-    Função principal do app.
-    Isolada para que st.stop() no tela_login() funcione corretamente.
-    """
     inicializar_banco()
     tela_login()
 
@@ -220,7 +197,7 @@ def _main():
         return
 
     # ---------------------------------------------------------------------------
-    # Config
+    # Caminho do config.json
     # ---------------------------------------------------------------------------
     CONFIG_PATH = Path(__file__).parent / "config.json"
 
@@ -229,7 +206,7 @@ def _main():
             return {
                 "smtp": {}, "drive_raiz": "", "pasta_destino": "",
                 "threshold_fuzzy": 80, "enviar_email_auto": False,
-                "email_relatorio": "", "modo_extracao": "auto", "dpi_ocr": 150,
+                "email_relatorio": ""
             }
         with open(CONFIG_PATH, "r", encoding="utf-8") as f:
             return json.load(f)
@@ -240,9 +217,9 @@ def _main():
 
     cfg = carregar_config()
 
-    # Inicializa session_state dos campos de pasta (para o seletor nativo funcionar)
     if "input_drive_raiz" not in st.session_state:
         st.session_state["input_drive_raiz"] = cfg.get("drive_raiz", "")
+
     if "input_pasta_destino" not in st.session_state:
         st.session_state["input_pasta_destino"] = cfg.get("pasta_destino", "")
 
@@ -267,14 +244,12 @@ def _main():
         "🔍 Busca", "📋 Histórico", "📊 Estatísticas", "⚙️ Configurações"
     ])
 
-
     # ============================================================
     # ABA 1 — BUSCA
     # ============================================================
     with aba_busca:
         st.subheader("Nova busca")
 
-        # Callbacks para os botões de seleção de pasta (on_click — sem st.rerun())
         def cb_selecionar_pasta_drive():
             from processor import abrir_seletor_pasta
             pasta_sel = abrir_seletor_pasta("Selecionar pasta raiz do drive")
@@ -293,7 +268,7 @@ def _main():
             arquivo_excel = st.file_uploader(
                 "📄 Planilha Excel com nomes e datas",
                 type=["xlsx", "xls"],
-                help="Colunas detectadas automaticamente. Aceita coluna de e-mail para envio automático.",
+                help="Colunas detectadas automaticamente. Aceita coluna de e-mail para envio automático."
             )
 
             _dr_col1, _dr_col2 = st.columns([5, 1])
@@ -301,15 +276,11 @@ def _main():
                 drive_raiz = st.text_input(
                     "📁 Caminho raiz do drive",
                     placeholder="Ex: Z:\\Procedimentos  ou  /mnt/drive/proc",
-                    key="input_drive_raiz",
+                    key="input_drive_raiz"
                 )
             with _dr_col2:
                 st.markdown("<br>", unsafe_allow_html=True)
-                st.button(
-                    "🗂️", key="btn_drive",
-                    help="Selecionar pasta pelo explorador",
-                    on_click=cb_selecionar_pasta_drive,
-                )
+                st.button("🗂️", key="btn_drive", help="Selecionar pasta pelo explorador", on_click=cb_selecionar_pasta_drive)
 
         with col2:
             _pd_col1, _pd_col2 = st.columns([5, 1])
@@ -317,104 +288,23 @@ def _main():
                 pasta_destino = st.text_input(
                     "📂 Pasta de destino",
                     placeholder="Ex: C:\\Resultados  ou  /home/user/resultados",
-                    key="input_pasta_destino",
+                    key="input_pasta_destino"
                 )
             with _pd_col2:
                 st.markdown("<br>", unsafe_allow_html=True)
-                st.button(
-                    "🗂️", key="btn_destino",
-                    help="Selecionar pasta pelo explorador",
-                    on_click=cb_selecionar_pasta_destino,
-                )
+                st.button("🗂️", key="btn_destino", help="Selecionar pasta pelo explorador", on_click=cb_selecionar_pasta_destino)
 
             threshold = st.slider(
                 "🎯 Sensibilidade da busca fuzzy",
                 min_value=60, max_value=100,
                 value=cfg.get("threshold_fuzzy", 80),
                 step=5,
-                help="100 = apenas correspondência exata. 80 = tolera erros de OCR. 60 = muito permissivo.",
+                help="100 = apenas correspondência exata. 80 = tolera erros de OCR. 60 = muito permissivo."
             )
-
-            _MODOS = {
-                "auto":   "🔄 Automático  —  tenta texto nativo, usa OCR se necessário",
-                "nativo": "⚡ Só texto nativo  —  PDFs digitais/exportados (muito rápido)",
-                "ocr":    "🔍 Só OCR  —  PDFs escaneados/fotografados (mais lento)",
-            }
-            modo_extracao = st.radio(
-                "📄 Modo de extração de texto",
-                options=list(_MODOS.keys()),
-                format_func=lambda k: _MODOS[k],
-                index=list(_MODOS.keys()).index(cfg.get("modo_extracao", "auto")),
-                help=(
-                    "Automático: seguro para arquivos mistos.\n"
-                    "Só texto nativo: use quando os PDFs foram gerados digitalmente.\n"
-                    "Só OCR: use quando os PDFs são fotos/scans."
-                ),
-            )
-
-            _DPI_OPTS = {
-                150: "⚡ 150 DPI  —  rápido  (recomendado para nomes)",
-                200: "⚖️ 200 DPI  —  equilibrado  (fontes pequenas)",
-                300: "🔬 300 DPI  —  detalhado  (manuscritos / baixa qualidade)",
-            }
-            dpi_ocr = st.select_slider(
-                "🖼️ Qualidade do OCR (DPI)",
-                options=[150, 200, 300],
-                value=cfg.get("dpi_ocr", 150),
-                format_func=lambda v: _DPI_OPTS[v],
-                help="150 DPI é suficiente para encontrar nomes em documentos comuns.",
-                disabled=(modo_extracao == "nativo"),
-            )
-            if modo_extracao == "nativo":
-                st.caption("DPI não se aplica ao modo texto nativo.")
-            else:
-                st.caption(
-                    "⚡ 150 DPI → 4× mais rápido que 300 DPI. "
-                    "Para busca de nomes, 150 é suficiente na grande maioria dos casos."
-                )
-
-        filtrar_aso = st.checkbox(
-            "🏥 Buscar apenas ASO (Atestado de Saúde Ocupacional)",
-            value=cfg.get("filtrar_aso", False),
-            help=(
-                "Quando ativado, o sistema ignora páginas que não sejam ASO — "
-                "prontuários, atestados médicos comuns, receitas e outros documentos "
-                "são pulados mesmo que contenham o nome do paciente. "
-                "Desative para buscar em qualquer tipo de documento."
-            ),
-        )
-
-        # ── Validação prévia da planilha ──────────────────────────────────
-        if arquivo_excel:
-            try:
-                import tempfile as _tf
-                with _tf.NamedTemporaryFile(delete=False, suffix=".xlsx") as _tmp:
-                    _tmp.write(arquivo_excel.read())
-                    _tmp_path = _tmp.name
-                arquivo_excel.seek(0)  # resetar para leitura posterior
-                _regs_prev = ler_planilha(_tmp_path)
-                os.unlink(_tmp_path)
-                _avisos = validar_planilha(_regs_prev)
-                if _avisos:
-                    with st.expander(
-                        f"⚠️ {len(_avisos)} aviso(s) na planilha — clique para ver",
-                        expanded=False,
-                    ):
-                        for _av in _avisos:
-                            _ic = (
-                                "🔁" if _av["tipo"] == "duplicata"
-                                else "📅" if _av["tipo"] == "data_invalida"
-                                else "✏️"
-                            )
-                            st.caption(f"{_ic} {_av['msg']}")
-                else:
-                    st.success(f"✅ Planilha válida — {len(_regs_prev)} registros detectados")
-            except Exception:
-                pass  # falha silenciosa na pré-validação
 
         enviar_email_auto = st.checkbox(
             "Enviar e-mail automático ao final (requer coluna 'email' na planilha e SMTP configurado)",
-            value=cfg.get("enviar_email_auto", False),
+            value=cfg.get("enviar_email_auto", False)
         )
 
         email_relatorio = ""
@@ -422,10 +312,10 @@ def _main():
             email_relatorio = st.text_input(
                 "E-mail para relatório de conclusão",
                 value=cfg.get("email_relatorio", ""),
-                placeholder="gestor@clinica.com.br",
+                placeholder="gestor@clinica.com.br"
             )
 
-        iniciar = st.button("▶ Iniciar busca", type="primary", use_container_width=True)
+        iniciar = st.button("▶ Iniciar busca", type="primary")
 
         if iniciar:
             erros = []
@@ -438,14 +328,11 @@ def _main():
                 st.stop()
 
             cfg.update({
-                "drive_raiz":        drive_raiz.strip(),
-                "pasta_destino":     pasta_destino.strip(),
-                "threshold_fuzzy":   threshold,
-                "filtrar_aso":       filtrar_aso,
+                "drive_raiz": drive_raiz.strip(),
+                "pasta_destino": pasta_destino.strip(),
+                "threshold_fuzzy": threshold,
                 "enviar_email_auto": enviar_email_auto,
-                "email_relatorio":   email_relatorio,
-                "modo_extracao":     modo_extracao,
-                "dpi_ocr":           dpi_ocr,
+                "email_relatorio": email_relatorio,
             })
             salvar_config(cfg)
 
@@ -453,74 +340,20 @@ def _main():
                 tmp.write(arquivo_excel.read())
                 caminho_tmp = tmp.name
 
-            execucao_id = iniciar_execucao(
-                usuario.get("id"), drive_raiz.strip(), pasta_destino.strip()
-            )
+            execucao_id = iniciar_execucao(usuario.get('id'), drive_raiz.strip(), pasta_destino.strip())
 
             st.divider()
             st.subheader("Progresso")
+            barra     = st.progress(0, text="Iniciando...")
+            st_txt    = st.empty()
+            st_log    = st.empty()
+            log_lines: list[str] = []
 
-            import time as _time
-
-            barra         = st.progress(0, text="Iniciando...")
-            slot_status   = st.empty()   # card da etapa atual
-            slot_metricas = st.empty()   # contadores + tempo
-            slot_log      = st.empty()   # log rolante
-
-            _t0    = _time.time()
-            _state = {"ok": 0, "erro": 0, "aviso": 0, "log": [], "last_log": ""}
-
-            _COR_BG    = {"ok": "#d4edda", "erro": "#f8d7da", "aviso": "#fff3cd", "info": "#e8f4f8"}
-            _COR_BORDA = {"ok": "#28a745", "erro": "#dc3545", "aviso": "#e6a817", "info": "#17a2b8"}
-            _ICONE     = {"ok": "✅", "erro": "❌", "aviso": "⚠️", "info": "🔍", "pdf_salvo": "📄"}
-
-            def cb(prog: float, etapa: str, detalhe: str = "", status: str = "info"):
-                pct     = int(prog * 100)
-                elapsed = _time.time() - _t0
-
-                barra.progress(min(prog, 1.0), text=f"{pct}%")
-
-                bg    = _COR_BG.get(status, "#e8f4f8")
-                borda = _COR_BORDA.get(status, "#17a2b8")
-                icone = _ICONE.get(status, "🔍")
-                detalhe_html = (
-                    f"<div style='font-size:12px;color:#555;margin-top:4px'>{detalhe}</div>"
-                    if detalhe else ""
-                )
-                slot_status.markdown(
-                    f"""<div style="background:{bg};border-left:4px solid {borda};
-                        border-radius:6px;padding:10px 16px;margin:4px 0">
-                        <b>{icone} {etapa}</b>{detalhe_html}
-                    </div>""",
-                    unsafe_allow_html=True,
-                )
-
-                # Atualiza contadores (evita contar etapas de sistema)
-                _etapas_sistema = {"Planilha lida", "Concluído", "Pasta localizada",
-                                   "Agrupamento concluído", "Retomando execução"}
-                if status == "ok" and etapa not in _etapas_sistema:
-                    _state["ok"] += 1
-                elif status == "erro":
-                    _state["erro"] += 1
-                elif status == "aviso":
-                    _state["aviso"] += 1
-                elif status == "pdf_salvo":
-                    _state["ok"] += 1
-
-                mins, secs = divmod(int(elapsed), 60)
-                tempo_str = f"{mins}m {secs:02d}s" if mins else f"{secs}s"
-                slot_metricas.markdown(
-                    f"✅ **{_state['ok']}** encontrados &nbsp;|&nbsp; "
-                    f"❌ **{_state['erro']}** erros &nbsp;|&nbsp; "
-                    f"⚠️ **{_state['aviso']}** não localizados &nbsp;|&nbsp; "
-                    f"⏱ **{tempo_str}**"
-                )
-
-                linha_log = f"{icone} {etapa}" + (f"  —  {detalhe}" if detalhe else "")
-                if linha_log != _state["last_log"]:
-                    _state["log"].append(linha_log)
-                    _state["last_log"] = linha_log
-                slot_log.code("\n".join(_state["log"][-30:]), language=None)
+            def cb(prog: float, msg: str):
+                barra.progress(prog, text=f"{int(prog * 100)}% concluído")
+                st_txt.markdown(f"Processando: **{msg}**")
+                log_lines.append(msg)
+                st_log.code("\n".join(log_lines[-20:]), language=None)
 
             try:
                 resultados = processar_lista(
@@ -529,9 +362,6 @@ def _main():
                     pasta_destino   = pasta_destino.strip(),
                     threshold_fuzzy = threshold,
                     callback        = cb,
-                    modo_extracao   = modo_extracao,
-                    dpi_ocr         = dpi_ocr,
-                    filtrar_aso     = filtrar_aso,
                 )
             except Exception as e:
                 st.error(f"❌ Erro crítico: {e}")
@@ -546,34 +376,32 @@ def _main():
                 salvar_resultado(execucao_id, r)
             finalizar_execucao(execucao_id, total, encontrados)
 
-            barra.progress(1.0, text="100%  —  Concluído!")
-            slot_status.empty()
+            barra.progress(1.0, text="Concluído!")
+            st_txt.empty()
 
-            # Envio de e-mails automático
             if enviar_email_auto and email_configurado():
                 with st.spinner("Enviando e-mails..."):
                     enviados = 0
                     for r in resultados:
                         if r["encontrado"] and r.get("email"):
                             ok_mail, _ = enviar_email(
-                                destinatario = r["email"],
-                                assunto      = f"Documento encontrado — {r['nome']}",
-                                corpo        = (
+                                destinatario=r["email"],
+                                assunto=f"Documento encontrado — {r['nome']}",
+                                corpo=(
                                     f"<p>Prezado(a), o documento de <strong>{r['nome']}</strong> "
                                     f"referente a <strong>{r['data']}</strong> foi localizado e está anexo.</p>"
                                 ),
-                                caminho_pdf  = r["arquivo"],
+                                caminho_pdf=r["arquivo"]
                             )
                             if ok_mail:
                                 enviados += 1
                     if email_relatorio:
                         enviar_relatorio_execucao(
                             email_relatorio, total, encontrados,
-                            total - encontrados, usuario.get("nome", ""),
+                            total - encontrados, usuario.get('nome', '')
                         )
                 st.success(f"📧 {enviados} e-mail(s) enviado(s) com sucesso.")
 
-            # Resultados
             st.divider()
             st.subheader("Resultados")
             nao_enc = total - encontrados
@@ -597,7 +425,7 @@ def _main():
 
             st.dataframe(
                 df.style.apply(colorir, axis=1),
-                use_container_width=True,
+                width='stretch',
                 hide_index=True,
             )
 
@@ -605,7 +433,7 @@ def _main():
             st.download_button(
                 "⬇️ Baixar relatório CSV", csv,
                 "relatorio_busca.csv", "text/csv",
-                use_container_width=True,
+                width='stretch',
             )
 
             if nao_enc > 0:
@@ -614,7 +442,6 @@ def _main():
                     "Verifique a coluna 'Observação'. "
                     "Tente reduzir a sensibilidade fuzzy se houver falsos positivos."
                 )
-
 
     # ============================================================
     # ABA 2 — HISTÓRICO
@@ -636,7 +463,7 @@ def _main():
             })
             st.dataframe(
                 df_exec[["ID", "Usuário", "Início", "Fim", "Total", "Encontrados", "Não enc."]],
-                use_container_width=True,
+                width='stretch',
                 hide_index=True,
             )
 
@@ -646,7 +473,7 @@ def _main():
             ids = [e["id"] for e in execucoes]
             exec_sel = st.selectbox(
                 "Selecione o ID da execução", ids,
-                format_func=lambda x: f"#{x}",
+                format_func=lambda x: f"#{x}"
             )
 
             if exec_sel:
@@ -664,7 +491,7 @@ def _main():
                     st.dataframe(
                         df_res[["Nome", "Data", "Encontrado", "Score", "Arquivo", "Observação"]]
                         .style.apply(colorir_hist, axis=1),
-                        use_container_width=True,
+                        width='stretch',
                         hide_index=True,
                     )
 
@@ -672,10 +499,10 @@ def _main():
                     st.download_button(
                         "⬇️ Exportar execução CSV", csv_hist,
                         f"execucao_{exec_sel}.csv", "text/csv",
+                        width='stretch',
                     )
                 else:
                     st.info("Nenhum resultado detalhado para esta execução.")
-
 
     # ============================================================
     # ABA 3 — ESTATÍSTICAS
@@ -734,7 +561,6 @@ def _main():
         if not stats["por_dia"] and not stats["top_usuarios"]:
             st.info("Nenhuma execução registrada ainda. As estatísticas aparecerão após a primeira busca.")
 
-
     # ============================================================
     # ABA 4 — CONFIGURAÇÕES
     # ============================================================
@@ -756,7 +582,7 @@ def _main():
                 elif len(s2) < 6:
                     st.error("A nova senha deve ter ao menos 6 caracteres.")
                 else:
-                    alterar_senha(usuario.get("id"), s2)
+                    alterar_senha(usuario.get('id'), s2)
                     st.success("Senha alterada com sucesso!")
 
         # --- E-mail SMTP ---
@@ -806,7 +632,7 @@ def _main():
                 usuarios_lista = listar_usuarios()
                 df_u = pd.DataFrame(usuarios_lista)[["id", "usuario", "nome", "email", "admin", "ativo", "criado_em"]]
                 df_u.columns = ["ID", "Login", "Nome", "E-mail", "Admin", "Ativo", "Criado em"]
-                st.dataframe(df_u, use_container_width=True, hide_index=True)
+                st.dataframe(df_u, width='stretch', hide_index=True)
 
             with st.expander("Criar novo usuário"):
                 nu = st.text_input("Login do novo usuário", key="nu")
@@ -842,6 +668,5 @@ def _main():
                 f"Config:     {CONFIG_PATH.resolve()}\n",
                 language=None,
             )
-
 
 _main()
