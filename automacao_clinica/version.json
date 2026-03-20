@@ -1,0 +1,22 @@
+{
+  "version": "1.0.0",
+  "url": "https://github.com/novamedicinasoftwares/iFind/releases/download/v1.0.0/ifind_v1.0.0.zip",
+  "hash_sha256": "6014e7f33a23ef50b41d29917b93d25c5c05a013200bb8d369922f0ad29effb3",
+  "notas": "Correcao no filtro ASO",
+  "obrigatorio": false,
+  "gerado_em": "2026-03-20 07:39:15",
+  "arquivos": [
+    "launcher.py",
+    "app.py",
+    "auth.py",
+    "database.py",
+    "processor.py",
+    "mailer.py",
+    "setup_tesseract.py",
+    "updater.py",
+    "requirements.txt",
+    "iniciar.bat",
+    "ifind.ico",
+    ".streamlit/config.toml"
+  ]
+}

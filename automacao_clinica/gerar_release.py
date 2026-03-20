@@ -1,30 +1,43 @@
 """
-gerar_release.py — Gera o pacote de update para publicar no servidor
-=====================================================================
+gerar_release.py — Gera o pacote de update para publicar no GitHub
+====================================================================
 
-USE:
+USO:
     python gerar_release.py 2.1.0
+    python gerar_release.py 2.1.0 "Correcao de bugs no filtro ASO"
+    python gerar_release.py 2.1.0 "Atualizacao critica" --obrigatorio
 
-O script:
-  1. Lê a versão como argumento
-  2. Empacota os arquivos do projeto em ifind_v2.1.0.zip
-  3. Calcula o SHA256 do zip
-  4. Gera/atualiza o version.json
-  5. Mostra o que publicar e onde
+O script faz tudo automaticamente:
+  1. Empacota os arquivos em ifind_v2.1.0.zip
+  2. Calcula SHA256 para verificacao de integridade
+  3. Gera o version.json com URL e hash corretos
+  4. Atualiza o VERSION no updater.py para a nova versao
+  5. Copia o version.json para a raiz do projeto (para o Git)
+  6. Mostra instrucoes exatas de publicacao no GitHub
 
-Execute na pasta do projeto antes de cada release.
+Repositorio configurado: novamedicinasoftwares/iFind
 """
 
 import hashlib
 import json
+import re
 import sys
 import zipfile
 from pathlib import Path
 from datetime import datetime
 
-# ── Arquivos incluídos no pacote de update ─────────────────────
-# NÃO inclua config.json, clinica.db, .auth_token — são dados do usuário
+# ================================================================
+# CONFIGURACAO — ajuste apenas estas variaveis
+# ================================================================
+
+# Usuario e repositorio no GitHub
+GITHUB_USER = "novamedicinasoftwares"
+GITHUB_REPO = "iFind"
+
+# Arquivos incluidos no pacote de update (sem dados do usuario)
+# IMPORTANTE: nao incluir config.json, clinica.db, .auth_token
 ARQUIVOS_INCLUIR = [
+    "launcher.py",        # ponto de entrada — OBRIGATORIO
     "app.py",
     "auth.py",
     "database.py",
@@ -34,16 +47,20 @@ ARQUIVOS_INCLUIR = [
     "updater.py",
     "requirements.txt",
     "iniciar.bat",
-    "README.md",
 ]
 
+# Pastas incluidas (apenas arquivos especificos dentro delas)
 PASTAS_INCLUIR = [
     (".streamlit", ["config.toml"]),
 ]
 
-# ── URL base onde você vai hospedar os arquivos ────────────────
-# Troque pelo seu GitHub ou servidor
-URL_BASE = "https://raw.githubusercontent.com/seu-usuario/ifind-clinica/releases/download"
+# Arquivos opcionais — incluidos se existirem, ignorados se nao
+ARQUIVOS_OPCIONAIS = [
+    "README.md",
+    "ifind.ico",
+]
+
+# ================================================================
 
 
 def calcular_sha256(caminho: Path) -> str:
@@ -54,114 +71,187 @@ def calcular_sha256(caminho: Path) -> str:
     return sha256.hexdigest()
 
 
+def atualizar_version_no_updater(pasta: Path, nova_versao: str) -> bool:
+    """
+    Atualiza a constante VERSION no updater.py para a nova versao.
+    Retorna True se atualizou, False se nao encontrou.
+    """
+    updater = pasta / "updater.py"
+    if not updater.exists():
+        return False
+
+    conteudo = updater.read_text(encoding="utf-8")
+    novo = re.sub(
+        r'^VERSION\s*=\s*["\'][\d.]+["\']',
+        f'VERSION = "{nova_versao}"',
+        conteudo,
+        flags=re.MULTILINE
+    )
+
+    if novo == conteudo:
+        return False  # nao encontrou ou ja estava correto
+
+    updater.write_text(novo, encoding="utf-8")
+    return True
+
+
 def gerar_release(versao: str, notas: str = "", obrigatorio: bool = False):
-    pasta_projeto = Path(__file__).parent
-    pasta_dist    = pasta_projeto / "dist_releases"
+    pasta = Path(__file__).parent
+
+    # URLs corretas do GitHub
+    # ZIP fica nas Releases:  github.com/USER/REPO/releases/download/vX/arquivo.zip
+    # JSON fica no raw:       raw.githubusercontent.com/USER/REPO/main/version.json
+    url_zip_base  = f"https://github.com/{GITHUB_USER}/{GITHUB_REPO}/releases/download"
+    url_json_raw  = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/main/version.json"
+
+    pasta_dist = pasta / "dist_releases"
     pasta_dist.mkdir(exist_ok=True)
 
-    nome_zip = f"ifind_v{versao}.zip"
+    nome_zip    = f"ifind_v{versao}.zip"
     caminho_zip = pasta_dist / nome_zip
-    caminho_json = pasta_dist / "version.json"
+    caminho_json_dist = pasta_dist / "version.json"
+    caminho_json_raiz = pasta / "version.json"  # copia na raiz para o Git
 
-    print(f"\n{'='*55}")
-    print(f"  iFind Clínica — Gerando release v{versao}")
-    print(f"{'='*55}\n")
+    sep = "=" * 56
+    print(f"\n{sep}")
+    print(f"  iFind Clinica — Gerando release v{versao}")
+    print(f"{sep}\n")
 
-    # ── Cria o ZIP ─────────────────────────────────────────────
+    # ── Empacota os arquivos ─────────────────────────────────────
     incluidos = []
     ausentes  = []
 
     with zipfile.ZipFile(caminho_zip, "w", zipfile.ZIP_DEFLATED) as zf:
+
+        # Arquivos obrigatorios
         for nome in ARQUIVOS_INCLUIR:
-            caminho = pasta_projeto / nome
+            caminho = pasta / nome
             if caminho.exists():
                 zf.write(caminho, nome)
                 incluidos.append(nome)
-                print(f"  ✓ {nome}")
+                print(f"  [OK] {nome}")
             else:
                 ausentes.append(nome)
-                print(f"  ⚠ {nome} — não encontrado (pulado)")
+                print(f"  [!!] {nome} -- NAO ENCONTRADO (verifique!)")
 
-        for pasta, arquivos in PASTAS_INCLUIR:
+        # Arquivos opcionais
+        for nome in ARQUIVOS_OPCIONAIS:
+            caminho = pasta / nome
+            if caminho.exists():
+                zf.write(caminho, nome)
+                incluidos.append(nome)
+                print(f"  [OK] {nome}")
+            # sem aviso se opcional nao existe
+
+        # Pastas
+        for pasta_rel, arquivos in PASTAS_INCLUIR:
             for arq in arquivos:
-                caminho = pasta_projeto / pasta / arq
-                nome_no_zip = f"{pasta}/{arq}"
+                caminho = pasta / pasta_rel / arq
+                nome_zip_interno = f"{pasta_rel}/{arq}"
                 if caminho.exists():
-                    zf.write(caminho, nome_no_zip)
-                    incluidos.append(nome_no_zip)
-                    print(f"  ✓ {nome_no_zip}")
+                    zf.write(caminho, nome_zip_interno)
+                    incluidos.append(nome_zip_interno)
+                    print(f"  [OK] {nome_zip_interno}")
                 else:
-                    ausentes.append(nome_no_zip)
-                    print(f"  ⚠ {nome_no_zip} — não encontrado (pulado)")
+                    print(f"  [--] {nome_zip_interno} -- nao encontrado (pulado)")
 
     tamanho_kb = caminho_zip.stat().st_size // 1024
-    print(f"\n  ZIP gerado: {caminho_zip.name} ({tamanho_kb} KB)")
+    print(f"\n  ZIP: {caminho_zip.name} ({tamanho_kb} KB)")
 
-    # ── SHA256 ─────────────────────────────────────────────────
+    # ── SHA256 ───────────────────────────────────────────────────
     sha256 = calcular_sha256(caminho_zip)
     print(f"  SHA256: {sha256}")
 
-    # ── version.json ───────────────────────────────────────────
-    url_zip = f"{URL_BASE}/v{versao}/{nome_zip}"
+    # ── version.json ─────────────────────────────────────────────
+    url_zip_final = f"{url_zip_base}/v{versao}/{nome_zip}"
 
-    dados_versao = {
-        "version":     versao,
-        "url":         url_zip,
+    dados = {
+        "version"    : versao,
+        "url"        : url_zip_final,
         "hash_sha256": sha256,
-        "notas":       notas or f"Atualização v{versao}",
+        "notas"      : notas or f"Atualizacao v{versao}",
         "obrigatorio": obrigatorio,
-        "gerado_em":   datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "arquivos":    incluidos,
+        "gerado_em"  : datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "arquivos"   : incluidos,
     }
 
-    with open(caminho_json, "w", encoding="utf-8") as f:
-        json.dump(dados_versao, f, indent=2, ensure_ascii=False)
+    # Salva em dist_releases/ (para upload manual) e na raiz (para o Git)
+    for dest in [caminho_json_dist, caminho_json_raiz]:
+        with open(dest, "w", encoding="utf-8") as f:
+            json.dump(dados, f, indent=2, ensure_ascii=False)
 
-    print(f"  version.json gerado: {caminho_json}")
+    print(f"  version.json: {caminho_json_dist.name} (+ copia na raiz para o Git)")
 
-    # ── Instruções ─────────────────────────────────────────────
+    # ── Atualiza VERSION no updater.py ───────────────────────────
+    if atualizar_version_no_updater(pasta, versao):
+        print(f"  updater.py: VERSION atualizado para {versao}")
+    else:
+        print(f"  [AVISO] Nao foi possivel atualizar VERSION no updater.py")
+        print(f"          Atualize manualmente: VERSION = \"{versao}\"")
+
+    # ── Instrucoes de publicacao ─────────────────────────────────
     print(f"""
-{'='*55}
-  PRÓXIMOS PASSOS — Publicar o update:
-{'='*55}
+{sep}
+  PUBLICAR NO GITHUB — passo a passo:
+{sep}
 
-  Opção A — GitHub Releases (recomendado, gratuito):
-  ───────────────────────────────────────────────────
-  1. Acesse: https://github.com/seu-usuario/ifind-clinica/releases/new
-  2. Tag: v{versao}
-  3. Faça upload de: {nome_zip}
-  4. No arquivo updater.py, a VERSION_URL deve apontar para o
-     version.json hospedado (ex: GitHub raw ou Gist).
-  5. Publique o version.json em:
-     https://raw.githubusercontent.com/seu-usuario/ifind-clinica/main/version.json
+  PASSO 1 — Commit do version.json (para o updater.py dos clientes):
+  ------------------------------------------------------------------
+  git add version.json updater.py
+  git commit -m "release: v{versao}"
+  git push origin main
 
-  Opção B — Servidor próprio / VPS:
-  ───────────────────────────────────────────────────
-  1. Envie via FTP/SFTP:
-       dist_releases/{nome_zip}  →  /var/www/html/ifind/
-       dist_releases/version.json → /var/www/html/ifind/
-  2. Atualize VERSION_URL em updater.py para apontar para o JSON.
+  PASSO 2 — Criar a Release no GitHub:
+  ------------------------------------------------------------------
+  1. Acesse:
+     https://github.com/{GITHUB_USER}/{GITHUB_REPO}/releases/new
 
-  Opção C — Google Drive / OneDrive (simples):
-  ───────────────────────────────────────────────────
-  1. Faça upload dos dois arquivos e gere link público.
-  2. Use o link direto (raw) no VERSION_URL do updater.py.
+  2. Em "Choose a tag" digite:  v{versao}
+     Clique em "Create new tag: v{versao} on publish"
 
-  ATENÇÃO: Após publicar, atualize VERSION em updater.py
-  para a próxima versão ANTES de compilar o próximo release.
-{'='*55}
+  3. Em "Release title" coloque:  iFind v{versao}
+
+  4. Em "Describe this release" cole as notas:
+     {notas or f"Atualizacao v{versao}"}
+
+  5. Arraste os arquivos para "Attach binaries":
+     - dist_releases/{nome_zip}
+       (este e o arquivo baixado pelo updater.py dos clientes)
+
+  6. Se quiser distribuir o instalador tambem:
+     - dist/ifind_clinica_v{versao}_setup.exe
+       (se ja compilou o Inno Setup)
+
+  7. Clique em "Publish release"
+
+  PASSO 3 — Verificar que o updater.py vai encontrar:
+  ------------------------------------------------------------------
+  URL do ZIP (verificar apos publicar):
+  {url_zip_final}
+
+  URL do version.json (ja esta no ar apos o git push):
+  {url_json_raw}
+
+{sep}
 """)
 
     if ausentes:
-        print(f"  ⚠ Arquivos ausentes não incluídos: {', '.join(ausentes)}\n")
+        print(f"  [!!] ATENCAO: {len(ausentes)} arquivo(s) NAO encontrado(s):")
+        for a in ausentes:
+            print(f"       - {a}")
+        print()
 
-    return caminho_zip, caminho_json
+    return caminho_zip, caminho_json_dist
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Uso: python gerar_release.py <versao> [notas] [--obrigatorio]")
-        print("Ex:  python gerar_release.py 2.1.0 'Correção de caminhos e varredura total'")
+        print("Uso:  python gerar_release.py <versao> [notas] [--obrigatorio]")
+        print()
+        print("Exemplos:")
+        print("  python gerar_release.py 2.1.0")
+        print("  python gerar_release.py 2.1.0 \"Correcao no filtro ASO\"")
+        print("  python gerar_release.py 2.1.0 \"Atualizacao critica\" --obrigatorio")
         sys.exit(1)
 
     versao = sys.argv[1]
