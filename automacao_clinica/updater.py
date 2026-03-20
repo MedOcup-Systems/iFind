@@ -55,8 +55,7 @@ from pathlib import Path
 from datetime import datetime
 
 # ── Versão atual do sistema ────────────────────────────────────
-# Altere este número a cada release que você publicar.
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 
 # ── URL do arquivo de versão no servidor ──────────────────────
 VERSION_URL = "https://raw.githubusercontent.com/novamedicinasoftwares/iFind/main/version.json"
