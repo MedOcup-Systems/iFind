@@ -17,7 +17,7 @@ set "PORTA_FILE=%PROJETO%\.porta_local"
 cls
 echo.
 echo  +----------------------------------------------------------+
-echo  ^|      iFIND CLINICA v2                                   ^|
+echo  ^|      iFIND CLINICA v1                                   ^|
 echo  ^|      Sistema de busca automatica em PDFs                ^|
 echo  +----------------------------------------------------------+
 echo.
