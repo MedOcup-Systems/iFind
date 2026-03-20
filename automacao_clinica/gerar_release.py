@@ -218,9 +218,10 @@ def gerar_release(versao: str, notas: str = "", obrigatorio: bool = False):
      - dist_releases/{nome_zip}
        (este e o arquivo baixado pelo updater.py dos clientes)
 
-  6. Se quiser distribuir o instalador tambem:
-     - dist/ifind_clinica_v{versao}_setup.exe
-       (se ja compilou o Inno Setup)
+  6. Tambem anexe o instalador para novos usuarios:
+     - dist_releases/ifind_clinica_v{versao}_setup.exe
+       Este e o arquivo que novos usuarios vao baixar e instalar.
+       (ja foi copiado automaticamente para dist_releases/ acima)
 
   7. Clique em "Publish release"
 
@@ -234,6 +235,41 @@ def gerar_release(versao: str, notas: str = "", obrigatorio: bool = False):
 
 {sep}
 """)
+
+    # ── Localiza e copia o .exe para dist_releases/ ─────────────
+    # O Inno Setup gera o .exe com o nome definido em OutputBaseFilename.
+    # Pode ser: ifind_clinica_v1_setup.exe, ifind_clinica_v1.0.0_setup.exe, etc.
+    # Busca qualquer .exe em dist/ para nao depender do nome exato.
+    pasta_dist_inno = pasta / "dist"
+    exe_encontrado = None
+
+    if pasta_dist_inno.exists():
+        # Procura primeiro pelo nome exato com versao completa
+        candidatos = [
+            pasta_dist_inno / f"ifind_clinica_v{versao}_setup.exe",
+            pasta_dist_inno / f"ifind_clinica_v{versao.split('.')[0]}_setup.exe",
+        ]
+        # Tambem aceita qualquer .exe na pasta dist/
+        candidatos += sorted(pasta_dist_inno.glob("*.exe"), reverse=True)
+
+        for c in candidatos:
+            if c.exists():
+                exe_encontrado = c
+                break
+
+    if exe_encontrado:
+        # Copia o .exe para dist_releases/ com nome padrao da versao
+        nome_exe_release = f"ifind_clinica_v{versao}_setup.exe"
+        destino_exe = pasta_dist / nome_exe_release
+        import shutil
+        shutil.copy2(exe_encontrado, destino_exe)
+        tamanho_exe_mb = destino_exe.stat().st_size // (1024 * 1024)
+        print(f"  [OK] Instalador: {exe_encontrado.name} -> dist_releases/{nome_exe_release} ({tamanho_exe_mb} MB)")
+    else:
+        nome_exe_release = f"ifind_clinica_v{versao}_setup.exe"
+        print(f"  [!!] Instalador .exe NAO encontrado em dist/")
+        print(f"       Compile o ifind_setup.iss no Inno Setup antes de publicar.")
+        print(f"       O usuario final precisa do .exe para instalar do zero.")
 
     if ausentes:
         print(f"  [!!] ATENCAO: {len(ausentes)} arquivo(s) NAO encontrado(s):")
